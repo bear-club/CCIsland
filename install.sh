@@ -72,6 +72,9 @@ fi
 echo "Installing to $INSTALL_PATH..."
 cp -R "$APP_PATH" /Applications/
 
+# Remove quarantine attribute to avoid Gatekeeper blocking unsigned app
+xattr -cr "$INSTALL_PATH" 2>/dev/null || true
+
 echo ""
 echo "✅ $APP_NAME ($TAG) installed successfully!"
 echo ""
