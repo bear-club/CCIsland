@@ -81,7 +81,11 @@ body {
   background: #666;
   flex-shrink: 0;
 
-  &.active { background: @color-green; }
+  &.active {
+    background: @color-green;
+    box-shadow: 0 0 6px 2px rgba(52, 199, 89, 0.5);
+    animation: dot-pulse 1.5s ease-in-out infinite;
+  }
   &.thinking {
     background: #6e5ce6;
     box-shadow: 0 0 6px 2px rgba(110, 92, 230, 0.6);
@@ -100,6 +104,11 @@ body {
 @keyframes glow {
   0%, 100% { box-shadow: 0 0 4px 1px rgba(110, 92, 230, 0.4); }
   50% { box-shadow: 0 0 10px 4px rgba(110, 92, 230, 0.8); }
+}
+
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(52, 199, 89, 0.3); transform: scale(1); }
+  50% { box-shadow: 0 0 8px 3px rgba(52, 199, 89, 0.6); transform: scale(1.2); }
 }
 
 .status-text {
