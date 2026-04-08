@@ -3,24 +3,9 @@
  *
  * 通过 window.claude (preload 暴露) 与 Main Process 通信
  * 处理: 面板状态切换, 会话状态更新, 审批请求, 通知
+ *
+ * 类型声明见 window.d.ts
  */
-
-export {};
-
-declare global {
-  interface Window {
-    claude: {
-      approveDecision: (id: string, behavior: 'allow' | 'deny', reason?: string)
-        => Promise<any>;
-      getState: () => Promise<any>;
-      togglePanel: (state: 'compact' | 'expanded') => Promise<void>;
-      onStateUpdate: (cb: (data: any) => void) => void;
-      onApprovalRequest: (cb: (data: any) => void) => void;
-      onPanelState: (cb: (data: any) => void) => void;
-      onNotification: (cb: (data: any) => void) => void;
-    };
-  }
-}
 
 // ── DOM 引用 ──
 
