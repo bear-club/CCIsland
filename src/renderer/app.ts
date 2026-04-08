@@ -75,11 +75,19 @@ window.claude.onStateUpdate((state: any) => {
       }
       break;
 
-    case 'thinking':
-      statusDot.className = 'status-dot thinking';
-      statusText.className = 'status-text shimmer';
-      statusText.textContent = 'Thinking...';
+    case 'thinking': {
+      // 胶囊不单独显示 thinking, 保持最后一个工具的信息
+      statusDot.className = 'status-dot active';
+      statusText.className = 'status-text';
+      var lastTools = state.recentTools || [];
+      var last = lastTools[lastTools.length - 1];
+      if (last) {
+        statusText.textContent = last.toolName + ': ' + last.description;
+      } else {
+        statusText.textContent = 'Claude Code';
+      }
       break;
+    }
 
     case 'done':
       statusDot.className = 'status-dot done';
