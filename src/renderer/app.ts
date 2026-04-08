@@ -21,11 +21,15 @@ var expandedView = document.getElementById('expanded-view')!;
 var statusDot = compactView.querySelector('.status-dot')!;
 var statusText = compactView.querySelector('.status-text')!;
 var approvalsContainer = document.getElementById('approvals')!;
+var logList = document.getElementById('log-list')!;
+var latestState: any = null; // 缓存最新状态用于渲染日志
 
-// ── 点击事件 ──
+// ── 点击事件: 展开显示日志 ──
 
 compactView.addEventListener('click', function() {
   window.claude.togglePanel('expanded');
+  // 展开时立即渲染日志
+  if (latestState) renderLog(latestState);
 });
 
 // ── 面板状态切换 ──
@@ -52,6 +56,7 @@ window.claude.onPanelState((data: any) => {
 
 window.claude.onStateUpdate((state: any) => {
   console.log('[app] stateUpdate:', JSON.stringify(state).slice(0, 200));
+  latestState = state;
 
   // ── 紧凑态：按 phase 显示不同内容 ──
   switch (state.phase) {
@@ -85,7 +90,10 @@ window.claude.onStateUpdate((state: any) => {
       break;
   }
 
-  // 展开态只保留审批卡片, 无需额外更新
+  // 展开态: 刷新日志
+  if (!expandedView.classList.contains('hidden')) {
+    renderLog(state);
+  }
 });
 
 // ── 审批请求 ──
@@ -140,6 +148,59 @@ window.claude.onNotification((data: any) => {
   statusText.textContent = data.message || 'Notification';
   setTimeout(function() { statusText.textContent = 'Claude Code'; }, 5000);
 });
+
+// ── 日志渲染 ──
+
+function renderLog(state: any) {
+  var html = '';
+  var tools = state.recentTools || [];
+
+  // 已完成的工具
+  for (var i = 0; i < tools.length; i++) {
+    var t = tools[i];
+    var dur = t.duration ? t.duration.toFixed(1) + 's' : '';
+    html += '<div class="log-entry">' +
+      '<span class="log-icon"></span>' +
+      '<span class="log-tool">' + escapeHtml(t.toolName) + '</span>' +
+      '<span class="log-desc">' + escapeHtml(t.description) + '</span>' +
+      '<span class="log-time">' + dur + '</span>' +
+      '</div>';
+  }
+
+  // 当前正在执行的工具
+  if (state.currentTool) {
+    html += '<div class="log-entry">' +
+      '<span class="log-icon running"></span>' +
+      '<span class="log-tool">' + escapeHtml(state.currentTool.toolName) + '</span>' +
+      '<span class="log-desc">' + escapeHtml(state.currentTool.description) + '</span>' +
+      '<span class="log-time">...</span>' +
+      '</div>';
+  }
+
+  // Thinking 状态
+  if (state.phase === 'thinking') {
+    html += '<div class="log-entry">' +
+      '<span class="log-icon thinking"></span>' +
+      '<span class="log-tool">Claude</span>' +
+      '<span class="log-desc">Thinking...</span>' +
+      '<span class="log-time"></span>' +
+      '</div>';
+  }
+
+  // 完成状态
+  if (state.phase === 'done') {
+    html += '<div class="log-entry">' +
+      '<span class="log-icon"></span>' +
+      '<span class="log-tool">Done</span>' +
+      '<span class="log-desc">' + escapeHtml(state.lastMessage || '\u2705 \u4efb\u52a1\u5b8c\u6210') + '</span>' +
+      '<span class="log-time"></span>' +
+      '</div>';
+  }
+
+  logList.innerHTML = html;
+  // 自动滚动到底部
+  logList.scrollTop = logList.scrollHeight;
+}
 
 // ── 工具函数 ──
 

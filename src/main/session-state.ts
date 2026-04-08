@@ -12,7 +12,7 @@
 import type { HookEvent, SessionSnapshot, ToolActivity, TaskItem, SessionPhase } from '../shared/types';
 import { describeToolInput } from '../shared/tool-description';
 
-const MAX_RECENT_TOOLS = 8;
+const MAX_RECENT_TOOLS = 200; // 保留会话全部日志
 
 export class SessionState {
   isActive = false;

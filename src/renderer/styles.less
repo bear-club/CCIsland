@@ -130,7 +130,7 @@ body {
   border-radius: 20px;             // 四角全圆
   padding: 16px;
   width: @expanded-width;
-  max-height: 160px;
+  max-height: 340px;
   overflow-y: auto;
   border: none;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -325,14 +325,54 @@ body {
   }
 }
 
-// ── 通知 ──
+// ── 日志列表 ──
 
-.notification-toast {
-  background: rgba(10, 132, 255, 0.15);
-  border: 1px solid rgba(10, 132, 255, 0.3);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 12px;
-  margin-bottom: 8px;
-  animation: slideIn 0.2s ease-out;
+.log-list {
+  margin-top: 8px;
+
+  .log-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 11px;
+    color: @text-tool;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+    &:last-child { border-bottom: none; }
+
+    .log-icon {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: @color-green;
+
+      &.running { background: @color-blue; animation: pulse 1.5s infinite; }
+      &.thinking { background: #6e5ce6; animation: glow 1.2s ease-in-out infinite; }
+    }
+
+    .log-tool {
+      font-family: @font-mono;
+      font-weight: 600;
+      color: @text-tool-name;
+      width: 44px;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+
+    .log-desc {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .log-time {
+      font-variant-numeric: tabular-nums;
+      color: @text-muted;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+  }
 }
