@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
   <link rel="stylesheet" href="styles.css">
   <title>Claude Island</title>
 </head>
 <body>
   <!-- 紧凑态: 药丸 -->
-  <div id="compact-view" class="compact" onclick="window.claude.togglePanel('expanded')">
+  <div id="compact-view" class="compact">
     <span class="status-dot"></span>
     <span class="status-text">Claude Code</span>
   </div>
@@ -21,7 +21,7 @@
       <span class="title">Claude Code</span>
       <span class="cwd"></span>
       <span class="elapsed"></span>
-      <button class="collapse-btn" onclick="window.claude.togglePanel('compact')">−</button>
+      <button class="collapse-btn" id="collapse-btn">−</button>
     </div>
 
     <div class="divider"></div>
@@ -36,7 +36,6 @@
     <div id="recent-tools"></div>
   </div>
 
-  <script>var exports = {};</script>
   <script src="app.js"></script>
 </body>
 </html>

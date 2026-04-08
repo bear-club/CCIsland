@@ -24,6 +24,19 @@ var approvalsContainer = document.getElementById('approvals')!;
 var tasksContainer = document.getElementById('tasks')!;
 var recentToolsContainer = document.getElementById('recent-tools')!;
 
+// ── 点击事件 (替代 inline onclick, 避免 CSP 违规) ──
+
+compactView.addEventListener('click', function() {
+  window.claude.togglePanel('expanded');
+});
+
+var collapseBtn = document.getElementById('collapse-btn');
+if (collapseBtn) {
+  collapseBtn.addEventListener('click', function() {
+    window.claude.togglePanel('compact');
+  });
+}
+
 // ── 面板状态切换 ──
 
 window.claude.onPanelState((data: any) => {

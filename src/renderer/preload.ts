@@ -4,50 +4,53 @@
  * 使用 contextBridge 将 IPC 方法暴露到 window.claude
  * Renderer 中通过 window.claude.xxx() 调用
  *
- * 每个监听器注册前先 removeAllListeners 防止热重载累积 (fix #7)
+ * 注意: preload 在沙箱中运行, 只能 require('electron'),
+ * 不能 require 自定义模块, 所以 IPC 通道名直接内联
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS } from '../shared/types';
+const { contextBridge, ipcRenderer } = require('electron');
+
+// IPC 通道名 (与 shared/types.ts IPC_CHANNELS 保持一致)
+const CH = {
+  APPROVAL_DECISION: 'approval-decision',
+  GET_STATE: 'get-state',
+  TOGGLE_PANEL: 'toggle-panel',
+  STATE_UPDATE: 'state-update',
+  APPROVAL_REQUEST: 'approval-request',
+  PANEL_STATE: 'panel-state',
+  NOTIFICATION: 'notification',
+};
 
 contextBridge.exposeInMainWorld('claude', {
   // ── Renderer → Main ──
 
-  /** 发送审批决策 */
   approveDecision: (toolUseId: string, behavior: 'allow' | 'deny', reason?: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.APPROVAL_DECISION, { toolUseId, behavior, reason }),
+    ipcRenderer.invoke(CH.APPROVAL_DECISION, { toolUseId, behavior, reason }),
 
-  /** 获取当前会话状态快照 */
-  getState: () => ipcRenderer.invoke(IPC_CHANNELS.GET_STATE),
+  getState: () => ipcRenderer.invoke(CH.GET_STATE),
 
-  /** 切换面板状态 */
   togglePanel: (state: 'compact' | 'expanded') =>
-    ipcRenderer.invoke(IPC_CHANNELS.TOGGLE_PANEL, state),
+    ipcRenderer.invoke(CH.TOGGLE_PANEL, state),
 
   // ── Main → Renderer (监听) ──
-  // 注册前清除旧监听器, 防止热重载时累积 (fix #7 memory leak)
 
-  /** 监听会话状态更新 */
   onStateUpdate: (callback: (data: any) => void) => {
-    ipcRenderer.removeAllListeners(IPC_CHANNELS.STATE_UPDATE);
-    ipcRenderer.on(IPC_CHANNELS.STATE_UPDATE, (_event, data) => callback(data));
+    ipcRenderer.removeAllListeners(CH.STATE_UPDATE);
+    ipcRenderer.on(CH.STATE_UPDATE, (_event: any, data: any) => callback(data));
   },
 
-  /** 监听新的审批请求 */
   onApprovalRequest: (callback: (data: any) => void) => {
-    ipcRenderer.removeAllListeners(IPC_CHANNELS.APPROVAL_REQUEST);
-    ipcRenderer.on(IPC_CHANNELS.APPROVAL_REQUEST, (_event, data) => callback(data));
+    ipcRenderer.removeAllListeners(CH.APPROVAL_REQUEST);
+    ipcRenderer.on(CH.APPROVAL_REQUEST, (_event: any, data: any) => callback(data));
   },
 
-  /** 监听面板状态变化 */
   onPanelState: (callback: (data: any) => void) => {
-    ipcRenderer.removeAllListeners(IPC_CHANNELS.PANEL_STATE);
-    ipcRenderer.on(IPC_CHANNELS.PANEL_STATE, (_event, data) => callback(data));
+    ipcRenderer.removeAllListeners(CH.PANEL_STATE);
+    ipcRenderer.on(CH.PANEL_STATE, (_event: any, data: any) => callback(data));
   },
 
-  /** 监听通知消息 */
   onNotification: (callback: (data: any) => void) => {
-    ipcRenderer.removeAllListeners(IPC_CHANNELS.NOTIFICATION);
-    ipcRenderer.on(IPC_CHANNELS.NOTIFICATION, (_event, data) => callback(data));
+    ipcRenderer.removeAllListeners(CH.NOTIFICATION);
+    ipcRenderer.on(CH.NOTIFICATION, (_event: any, data: any) => callback(data));
   },
 });
