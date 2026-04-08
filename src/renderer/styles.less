@@ -1,0 +1,312 @@
+// Claude Island — 灵动岛样式 (深色主题)
+// Less 变量 + 嵌套
+
+// ── 设计令牌 ──
+
+@font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+@font-mono: 'SF Mono', 'Menlo', monospace;
+
+@color-white: #fff;
+@color-green: #34c759;
+@color-orange: #ff9f0a;
+@color-red: #ff3b30;
+@color-blue: #0a84ff;
+
+@bg-compact: rgba(0, 0, 0, 0.88);
+@bg-compact-hover: rgba(0, 0, 0, 0.95);
+@bg-expanded: rgba(0, 0, 0, 0.92);
+@bg-white-10: rgba(255, 255, 255, 0.1);
+@bg-white-15: rgba(255, 255, 255, 0.15);
+
+@text-primary: @color-white;
+@text-secondary: rgba(255, 255, 255, 0.5);
+@text-tertiary: rgba(255, 255, 255, 0.4);
+@text-muted: rgba(255, 255, 255, 0.3);
+@text-tool: rgba(255, 255, 255, 0.6);
+@text-tool-name: rgba(255, 255, 255, 0.8);
+@text-tool-desc: rgba(255, 255, 255, 0.9);
+
+@compact-width: 220px;
+@compact-height: 36px;
+@expanded-width: 380px;
+@expanded-max-height: 400px;
+
+@ease-spring: cubic-bezier(0.4, 0, 0.2, 1);
+
+// ── 基础重置 ──
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: transparent;
+  font-family: @font-system;
+  color: @text-primary;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+  user-select: none;
+}
+
+// ── 紧凑态 (药丸, 220x36) ──
+
+.compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: @compact-height;
+  background: @bg-compact;
+  border-radius: @compact-height / 2;
+  cursor: pointer;
+  transition: all 0.3s @ease-spring;
+  margin: 0 auto;
+  width: fit-content;
+  min-width: 180px;
+
+  &:hover {
+    background: @bg-compact-hover;
+    transform: scale(1.02);
+  }
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+  flex-shrink: 0;
+
+  &.active { background: @color-green; }
+  &.pending { background: @color-orange; animation: pulse 1.5s infinite; }
+  &.idle { background: #666; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-text {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ── 展开态 (面板, 380xAuto) ──
+
+.expanded {
+  background: @bg-expanded;
+  border-radius: 20px;
+  padding: 16px;
+  width: @expanded-width;
+  max-height: @expanded-max-height;
+  overflow-y: auto;
+  border: 0.5px solid @bg-white-10;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  margin: 0 auto;
+  animation: expandIn 0.3s @ease-spring;
+
+  // 滚动条
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb {
+    background: @bg-white-15;
+    border-radius: 2px;
+  }
+}
+
+@keyframes expandIn {
+  from { opacity: 0; transform: scaleY(0.8) translateY(-10px); }
+  to { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+
+.hidden { display: none !important; }
+
+// ── 头部 ──
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+
+  .title { font-weight: 600; }
+
+  .cwd {
+    color: @text-secondary;
+    flex: 1;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .elapsed {
+    color: @text-tertiary;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  color: @text-tertiary;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+
+  &:hover {
+    background: @bg-white-10;
+    color: @color-white;
+  }
+}
+
+.divider {
+  height: 1px;
+  background: @bg-white-10;
+  margin: 10px 0;
+}
+
+// ── 审批卡片 ──
+
+@approval-bg: rgba(255, 159, 10, 0.1);
+@approval-border: rgba(255, 159, 10, 0.3);
+
+.approval-card {
+  background: @approval-bg;
+  border: 1px solid @approval-border;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  animation: slideIn 0.2s ease-out;
+
+  .label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: @color-orange;
+    margin-bottom: 8px;
+  }
+
+  .tool-desc {
+    font-size: 11px;
+    font-family: @font-mono;
+    color: @text-tool-desc;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    word-break: break-all;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+// ── 按钮 ──
+
+.btn {
+  padding: 6px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-deny {
+  background: rgba(255, 59, 48, 0.2);
+  color: @color-red;
+  &:hover { background: rgba(255, 59, 48, 0.4); }
+}
+
+.btn-allow {
+  background: rgba(52, 199, 89, 0.2);
+  color: @color-green;
+  flex: 1;
+  &:hover { background: rgba(52, 199, 89, 0.4); }
+}
+
+// ── 任务列表 ──
+
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: @text-tertiary;
+  margin: 10px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.task-icon {
+  font-size: 10px;
+  &.completed { color: @color-green; }
+  &.in-progress { color: @color-blue; }
+  &.pending { color: @text-muted; }
+}
+
+// ── 工具历史 ──
+
+.tool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 11px;
+  color: @text-tool;
+
+  .name {
+    font-family: @font-mono;
+    font-weight: 500;
+    width: 50px;
+    color: @text-tool-name;
+  }
+
+  .desc {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .duration {
+    font-variant-numeric: tabular-nums;
+    color: @text-muted;
+  }
+}
+
+// ── 通知 ──
+
+.notification-toast {
+  background: rgba(10, 132, 255, 0.15);
+  border: 1px solid rgba(10, 132, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  animation: slideIn 0.2s ease-out;
+}
