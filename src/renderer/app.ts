@@ -160,50 +160,42 @@ function renderLog(state: any) {
   var html = '';
   var tools = state.recentTools || [];
 
-  // 已完成的工具
+  // 已完成的工具: ✅ ToolName `description`
   for (var i = 0; i < tools.length; i++) {
     var t = tools[i];
-    var dur = t.duration ? t.duration.toFixed(1) + 's' : '';
-    html += '<div class="log-entry">' +
-      '<span class="log-icon"></span>' +
-      '<span class="log-tool">' + escapeHtml(t.toolName) + '</span>' +
-      '<span class="log-desc">' + escapeHtml(t.description) + '</span>' +
-      '<span class="log-time">' + dur + '</span>' +
+    var desc = t.description ? ' <code>' + escapeHtml(t.description) + '</code>' : '';
+    html += '<div class="log-line done">' +
+      '<span class="log-check">\u2705</span>' +
+      '<b>' + escapeHtml(t.toolName) + '</b>' + desc +
       '</div>';
   }
 
-  // 当前正在执行的工具
+  // 当前正在执行的工具: ⏳ ToolName `description`
   if (state.currentTool) {
-    html += '<div class="log-entry">' +
-      '<span class="log-icon running"></span>' +
-      '<span class="log-tool">' + escapeHtml(state.currentTool.toolName) + '</span>' +
-      '<span class="log-desc">' + escapeHtml(state.currentTool.description) + '</span>' +
-      '<span class="log-time">...</span>' +
+    var cdesc = state.currentTool.description ? ' <code>' + escapeHtml(state.currentTool.description) + '</code>' : '';
+    html += '<div class="log-line running">' +
+      '<span class="log-check">\u23F3</span>' +
+      '<b>' + escapeHtml(state.currentTool.toolName) + '</b>' + cdesc +
       '</div>';
   }
 
-  // Thinking 状态
+  // Thinking
   if (state.phase === 'thinking') {
-    html += '<div class="log-entry">' +
-      '<span class="log-icon thinking"></span>' +
-      '<span class="log-tool">Claude</span>' +
-      '<span class="log-desc">Thinking...</span>' +
-      '<span class="log-time"></span>' +
+    html += '<div class="log-line thinking">' +
+      '<span class="log-check">\uD83D\uDCAD</span>' +
+      '<b>Thinking...</b>' +
       '</div>';
   }
 
-  // 完成状态
+  // 完成
   if (state.phase === 'done') {
-    html += '<div class="log-entry">' +
-      '<span class="log-icon"></span>' +
-      '<span class="log-tool">Done</span>' +
-      '<span class="log-desc">' + escapeHtml(state.lastMessage || '\u2705 \u4efb\u52a1\u5b8c\u6210') + '</span>' +
-      '<span class="log-time"></span>' +
+    html += '<div class="log-line complete">' +
+      '<span class="log-check">\uD83D\uDFE2</span>' +
+      '<b>Complete</b>' +
       '</div>';
   }
 
   logList.innerHTML = html;
-  // 自动滚动到底部
   logList.scrollTop = logList.scrollHeight;
 }
 
