@@ -36,6 +36,20 @@ export class SessionState {
 
   handlePreToolUse(event: HookEvent): void {
     this.lastEventTime = Date.now();
+
+    // 自动激活会话 (Claude Code 不发 SessionStart 事件)
+    if (!this.isActive || this.sessionId !== event.session_id) {
+      this.isActive = true;
+      this.sessionId = event.session_id;
+      this.cwd = event.cwd;
+      this.startTime = Date.now();
+      if (this.sessionId !== event.session_id) {
+        this.recentTools = [];
+        this.tasks = [];
+      }
+    }
+    if (event.cwd) this.cwd = event.cwd;
+
     const input = event.tool_input || {};
 
     this.currentTool = {
@@ -49,6 +63,7 @@ export class SessionState {
 
   handlePostToolUse(event: HookEvent): void {
     this.lastEventTime = Date.now();
+    if (event.cwd) this.cwd = event.cwd;
 
     if (this.currentTool && this.currentTool.id === event.tool_use_id) {
       this.currentTool.endTime = Date.now();
