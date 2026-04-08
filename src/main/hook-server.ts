@@ -116,7 +116,9 @@ export class HookServer {
   private async handleHook(body: string, res: http.ServerResponse): Promise<void> {
     try {
       const event = JSON.parse(body) as HookEvent;
+      console.log('[HookServer] Received event:', JSON.stringify(event, null, 2));
       const response = await this.handler(event);
+      console.log('[HookServer] Sending response:', JSON.stringify(response));
       // 先序列化再写 header, 防止 stringify 失败后 header 已发 (fix #11)
       const responseBody = JSON.stringify(response);
       res.writeHead(200, { 'Content-Type': 'application/json' });

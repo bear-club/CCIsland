@@ -28,6 +28,7 @@ export class HookRouter {
    */
   async handle(event: HookEvent): Promise<HookResponse> {
     const { hook_event_name } = event;
+    console.log(`[HookRouter] Event: ${hook_event_name}, tool: ${event.tool_name}, keys: ${Object.keys(event).join(',')}`);
 
     // 自动控制窗口展开/收起
     this.windowManager.onEvent(event, this.approvalManager);
