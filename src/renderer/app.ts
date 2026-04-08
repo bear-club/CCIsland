@@ -24,12 +24,17 @@ var approvalsContainer = document.getElementById('approvals')!;
 var logList = document.getElementById('log-list')!;
 var latestState: any = null; // 缓存最新状态用于渲染日志
 
-// ── 点击事件: 展开显示日志 ──
+// ── 点击事件: 展开/收回 ──
 
 compactView.addEventListener('click', function() {
   window.claude.togglePanel('expanded');
-  // 展开时立即渲染日志
   if (latestState) renderLog(latestState);
+});
+
+expandedView.addEventListener('click', function(e: MouseEvent) {
+  // 点击按钮时不收回 (审批按钮)
+  if ((e.target as HTMLElement).closest('.btn')) return;
+  window.claude.togglePanel('compact');
 });
 
 // ── 面板状态切换 ──
