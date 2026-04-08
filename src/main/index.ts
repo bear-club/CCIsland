@@ -84,7 +84,7 @@ function createIslandWindow(): BrowserWindow {
 
     frame: false,
     transparent: true,
-    hasShadow: true,
+    hasShadow: false,
     alwaysOnTop: true,
     focusable: false,
     skipTaskbar: true,
