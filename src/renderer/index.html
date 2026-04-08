@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <link rel="stylesheet" href="styles.css">
+  <title>Claude Island</title>
+</head>
+<body>
+  <!-- 紧凑态: 药丸 -->
+  <div id="compact-view" class="compact" onclick="window.claude.togglePanel('expanded')">
+    <span class="status-dot"></span>
+    <span class="status-text">Claude Code</span>
+  </div>
+
+  <!-- 展开态: 面板 -->
+  <div id="expanded-view" class="expanded hidden">
+    <!-- 头部 -->
+    <div class="header">
+      <span class="title">Claude Code</span>
+      <span class="cwd"></span>
+      <span class="elapsed"></span>
+      <button class="collapse-btn" onclick="window.claude.togglePanel('compact')">−</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 审批区域 -->
+    <div id="approvals"></div>
+
+    <!-- 任务列表 -->
+    <div id="tasks"></div>
+
+    <!-- 工具历史 -->
+    <div id="recent-tools"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
