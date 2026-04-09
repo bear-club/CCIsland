@@ -38,6 +38,10 @@
 - Deny: 拒绝本次
 - 审批卡片标题改为显示工具名，描述单独一行
 
+### feat: 任务完成后胶囊常驻显示
+- Stop / SessionEnd 后胶囊不再自动隐藏，保持 compact 常驻显示完成状态
+- SessionEnd 时 phase 设为 `done`（而非 `idle`），保留 lastMessage 以持续展示结果
+
 ### fix: Electron 安装 + pnpm 配置
 - `package.json` 添加 `pnpm.onlyBuiltDependencies` 配置，批准 electron 构建脚本
 

@@ -103,13 +103,13 @@ export class WindowManager {
         break;
 
       case 'Stop':
-        // 保持 compact 显示结果 15s
-        this.scheduleHide(15000);
+        // 任务完成后保持 compact 常驻显示
+        if (this.state === 'expanded') this.show('compact');
         break;
 
       case 'SessionEnd':
-        this.scheduleCollapse(1000);
-        this.scheduleHide(3000);
+        // 会话结束后保持 compact 常驻显示完成状态
+        if (this.state === 'expanded') this.show('compact');
         break;
     }
 

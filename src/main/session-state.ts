@@ -165,9 +165,8 @@ export class SessionState {
 
   handleSessionEnd(_event: HookEvent): void {
     this.isActive = false;
-    this.phase = 'idle';
+    this.phase = 'done';
     this.currentTool = undefined;
-    this.lastMessage = undefined;
     this.lastEventTime = Date.now();
   }
 
