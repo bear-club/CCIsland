@@ -8,7 +8,7 @@
 import http from 'node:http';
 import type { HookEvent, HookResponse } from '../shared/types';
 
-export type RequestHandler = (event: HookEvent) => Promise<HookResponse>;
+export type RequestHandler = (event: HookEvent, signal: AbortSignal) => Promise<HookResponse>;
 
 const MAX_BODY_SIZE = 1024 * 1024; // 1MB body 上限 (fix #9)
 
@@ -71,7 +71,7 @@ export class HookServer {
           body += chunk.toString();
         });
         req.on('end', () => {
-          if (!aborted) this.handleHook(body, res);
+          if (!aborted) this.handleHook(body, res, req);
         });
         return;
       }
@@ -113,16 +113,24 @@ export class HookServer {
     }
   }
 
-  private async handleHook(body: string, res: http.ServerResponse): Promise<void> {
+  private async handleHook(body: string, res: http.ServerResponse, req: http.IncomingMessage): Promise<void> {
     try {
       const event = JSON.parse(body) as HookEvent;
       console.log('[HookServer] Received event:', JSON.stringify(event, null, 2));
-      const response = await this.handler(event);
+
+      const ac = new AbortController();
+      req.on('close', () => {
+        if (!res.writableEnded) ac.abort();
+      });
+
+      const response = await this.handler(event, ac.signal);
       console.log('[HookServer] Sending response:', JSON.stringify(response));
       // 先序列化再写 header, 防止 stringify 失败后 header 已发 (fix #11)
       const responseBody = JSON.stringify(response);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(responseBody);
+      if (!res.writableEnded) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(responseBody);
+      }
     } catch (err) {
       console.error('[HookServer] Error handling hook:', err);
       if (!res.headersSent) {

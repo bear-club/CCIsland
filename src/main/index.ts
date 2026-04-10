@@ -45,7 +45,7 @@ app.whenReady().then(async () => {
   const router = new HookRouter(sessionState, approvalManager, windowManager, trayManager);
 
   // 启动 HTTP Hook 服务
-  server = new HookServer((event) => router.handle(event));
+  server = new HookServer((event, signal) => router.handle(event, signal));
   await server.start(51515);
 
   // 自动注册 hooks 到 ~/.claude/settings.json

@@ -8,7 +8,7 @@
  * 直到用户在 UI 点击 Allow/Deny 后才返回 HTTP 响应
  */
 
-import type { HookEvent, HookResponse, ApprovalRequestData } from '../shared/types';
+import type { HookEvent, HookResponse, ApprovalRequestData, ApprovalDecision } from '../shared/types';
 import { IPC_CHANNELS } from '../shared/types';
 import { describeToolInput } from '../shared/tool-description';
 import type { SessionState } from './session-state';
@@ -28,7 +28,7 @@ export class HookRouter {
    * 处理 hook 事件, 返回 JSON 响应给 Claude Code
    * 对于 PermissionRequest, 此方法会一直阻塞到用户审批
    */
-  async handle(event: HookEvent): Promise<HookResponse> {
+  async handle(event: HookEvent, signal: AbortSignal): Promise<HookResponse> {
     const { hook_event_name } = event;
     console.log(`[HookRouter] Event: ${hook_event_name}, tool: ${event.tool_name}, keys: ${Object.keys(event).join(',')}`);
 
@@ -83,8 +83,20 @@ export class HookRouter {
 
         this.windowManager.sendToRenderer(IPC_CHANNELS.APPROVAL_REQUEST, approvalRequest);
 
-        // Promise 挂起, 等待用户点击 Allow/Deny
-        const decision = await this.approvalManager.waitForDecision(approvalRequest);
+        // 监听连接断开 (用户在 Claude Code 中直接操作)
+        const aborted = new Promise<ApprovalDecision>((resolve) => {
+          signal.addEventListener('abort', () => {
+            this.approvalManager.resolve(approvalRequest.id,
+              { behavior: 'allow', reason: '' });
+            resolve({ behavior: 'allow', reason: '' });
+          }, { once: true });
+        });
+
+        // Promise 挂起, 等待用户点击 Allow/Deny 或连接断开
+        const decision = await Promise.race([
+          this.approvalManager.waitForDecision(approvalRequest),
+          aborted,
+        ]);
 
         return this.buildPermissionResponse(decision);
       }
