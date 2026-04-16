@@ -5,9 +5,10 @@
   "main": "dist/main/index.js",
   "scripts": {
     "less": "lessc src/renderer/styles.less dist/renderer/styles.css",
-    "prepare:renderer": "node -e \"const fs=require('node:fs');fs.mkdirSync('dist/renderer',{recursive:true});fs.copyFileSync('src/renderer/index.html','dist/renderer/index.html');\"",
+    "prepare:renderer": "node -e \"const fs=require('node:fs');fs.mkdirSync('dist/renderer',{recursive:true});for(const f of ['index.html']) fs.copyFileSync('src/renderer/'+f,'dist/renderer/'+f); if (fs.existsSync('dist/renderer/app.js')) fs.copyFileSync('dist/renderer/app.js','dist/renderer/app.js'); if (fs.existsSync('dist/renderer/tauri-bridge.js')) fs.copyFileSync('dist/renderer/tauri-bridge.js','dist/renderer/tauri-bridge.js');\"",
     "build:ts": "tsc",
     "build:assets": "pnpm less && pnpm prepare:renderer",
+    "build:renderer": "pnpm build:ts && pnpm build:assets",
     "dev": "pnpm build:ts && pnpm build:assets && electron .",
     "build": "pnpm build:ts && pnpm build:assets && electron-builder",
     "build:mac": "pnpm build:ts && pnpm build:assets && electron-builder --mac",
@@ -15,9 +16,12 @@
     "watch": "tsc --watch",
     "install-hooks": "ts-node scripts/install-hooks.ts",
     "remove-hooks": "ts-node scripts/remove-hooks.ts",
-    "release": "bash scripts/release.sh"
+    "release": "bash scripts/release.sh",
+    "tauri:dev": "pnpm build:renderer && tauri dev",
+    "tauri:build": "pnpm build:renderer && tauri build"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
     "less": "^4.6.4",
@@ -82,5 +86,8 @@
     "dmg": {
       "icon": "docs/icon.png"
     }
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.1"
   }
 }

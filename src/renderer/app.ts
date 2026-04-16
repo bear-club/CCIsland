@@ -24,8 +24,11 @@ var closeBtn = compactView.querySelector('.close-btn')!;
 var approvalsContainer = document.getElementById('approvals')!;
 var sessionListContainer = document.getElementById('session-list')!;
 var logList = document.getElementById('log-list')!;
+var chatHistory = document.getElementById('chat-history')!;
 var terminalBtn = document.getElementById('terminal-btn');
 var latestState: any = null; // 缓存最新状态用于渲染日志
+var latestChatSessionId: string | null = null;
+var chatHistoryRequestToken = 0;
 
 // ── 点击事件: 展开/收回/关闭 ──
 
@@ -37,7 +40,10 @@ closeBtn.addEventListener('click', function(e) {
 compactView.addEventListener('click', function(e: MouseEvent) {
   if ((e.target as HTMLElement).closest('.close-btn')) return;
   window.claude.togglePanel('expanded');
-  if (latestState) renderLog(latestState);
+  if (latestState) {
+    renderLog(latestState);
+    refreshChatHistory(latestState.sessionId);
+  }
 });
 
 expandedView.addEventListener('click', function(e: MouseEvent) {
@@ -77,6 +83,10 @@ window.claude.onPanelState((data: any) => {
     case 'expanded':
       compactView.classList.add('hidden');
       expandedView.classList.remove('hidden');
+      if (latestState) {
+        renderLog(latestState);
+        refreshChatHistory(latestState.sessionId);
+      }
       break;
     case 'hidden':
       compactView.classList.add('hidden');
@@ -132,9 +142,12 @@ window.claude.onStateUpdate((state: any) => {
       break;
   }
 
-  // 展开态: 刷新日志
+  // 展开态: 刷新日志和聊天历史
   if (!expandedView.classList.contains('hidden')) {
     renderLog(state);
+    if (state.sessionId !== latestChatSessionId) {
+      refreshChatHistory(state.sessionId);
+    }
   }
 });
 
@@ -197,6 +210,9 @@ window.claude.onSessionList((sessions: any[]) => {
 
 window.claude.onApprovalRequest((data: any) => {
   console.log('[app] approvalRequest:', data);
+  if (document.getElementById('approval-' + data.id)) return;
+  compactView.classList.add('hidden');
+  expandedView.classList.remove('hidden');
   statusDot.className = 'status-dot pending';
 
   var card = document.createElement('div');
@@ -252,6 +268,9 @@ window.claude.onApprovalRequest((data: any) => {
 
 window.claude.onQuestionRequest((data: any) => {
   console.log('[app] questionRequest:', data);
+  if (document.getElementById('question-' + data.id)) return;
+  compactView.classList.add('hidden');
+  expandedView.classList.remove('hidden');
   statusDot.className = 'status-dot pending';
 
   var card = document.createElement('div');
@@ -383,6 +402,9 @@ window.claude.onApprovalDismissed((data: any) => {
   var card = document.getElementById('approval-' + data.id) ||
              document.getElementById('question-' + data.id);
   if (card) card.remove();
+  if (!approvalsContainer.children.length && !expandedView.classList.contains('hidden') && latestState) {
+    renderLog(latestState);
+  }
 });
 
 // ── 通知 (简化: 在紧凑态 statusText 显示) ──
@@ -436,6 +458,43 @@ function renderLog(state: any) {
   logList.scrollTop = logList.scrollHeight;
 }
 
+function refreshChatHistory(sessionId?: string | null) {
+  var requestToken = ++chatHistoryRequestToken;
+  latestChatSessionId = sessionId || null;
+
+  window.claude.getChatHistory(sessionId || undefined).then(function(messages: any[]) {
+    if (requestToken !== chatHistoryRequestToken) return;
+    renderChatHistory(messages || []);
+  }).catch(function(error: any) {
+    if (requestToken !== chatHistoryRequestToken) return;
+    console.error('[app] getChatHistory failed', error);
+    renderChatHistory([]);
+  });
+}
+
+function renderChatHistory(messages: any[]) {
+  if (!messages || !messages.length) {
+    chatHistory.classList.add('hidden');
+    chatHistory.innerHTML = '';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < messages.length; i++) {
+    var message = messages[i] || {};
+    var role = message.role === 'assistant' ? 'AI' : 'You';
+    var roleClass = message.role === 'assistant' ? 'chat-assistant' : 'chat-user';
+    html += '<div class="chat-line ' + roleClass + '">' +
+      '<span class="chat-role">' + role + '</span>' +
+      '<div class="chat-content">' + escapeHtml(String(message.content || '')) + '</div>' +
+      '</div>';
+  }
+
+  chatHistory.innerHTML = html;
+  chatHistory.classList.remove('hidden');
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
 // ── 工具函数 ──
 
 function escapeHtml(s: string) {
@@ -450,7 +509,18 @@ function escapeHtml(s: string) {
 console.log('[app] registering listeners done');
 window.claude.getState().then(function(state: any) {
   console.log('[app] initial state:', state);
+  latestState = state;
   if (state && state.isActive) {
     statusDot.className = 'status-dot active';
   }
+  if (state && state.phase === 'done') {
+    statusText.className = 'status-text done-text';
+    statusText.textContent = state.lastMessage || 'Done';
+  }
+  if (!expandedView.classList.contains('hidden')) {
+    renderLog(state);
+    refreshChatHistory(state.sessionId);
+  }
+}).catch(function(error: any) {
+  console.error('[app] initial getState failed', error);
 });
