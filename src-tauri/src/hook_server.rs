@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::{atomic::Ordering, Arc};
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::{get, post}, Json, Router};
 use serde_json::json;
@@ -26,7 +26,7 @@ pub async fn spawn_hook_server(app: AppHandle, shared: Arc<SharedState>) -> Resu
   }
 
   let (listener, port) = bound.ok_or_else(|| "failed to bind hook server on 51515-51520".to_string())?;
-  *shared.server_port.lock().await = Some(port);
+  shared.server_port.store(port, Ordering::Relaxed);
 
   let state = ServerState { app: app.clone(), shared };
   let router = Router::new()
@@ -43,7 +43,7 @@ pub async fn spawn_hook_server(app: AppHandle, shared: Arc<SharedState>) -> Resu
 }
 
 async fn health(State(state): State<ServerState>) -> impl IntoResponse {
-  let port = state.shared.server_port.lock().await.unwrap_or(0);
+  let port = state.shared.server_port.load(Ordering::Relaxed);
   Json(json!({ "status": "ok", "port": port }))
 }
 
@@ -66,9 +66,4 @@ async fn hook(State(state): State<ServerState>, Json(event): Json<HookEvent>) ->
     )
       .into_response(),
   }
-}
-
-#[allow(dead_code)]
-fn _addr(port: u16) -> SocketAddr {
-  SocketAddr::from(([127, 0, 0, 1], port))
 }

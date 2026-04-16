@@ -1,8 +1,10 @@
-use std::{collections::HashMap, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::HashMap, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
 
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
+
+static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 use crate::{
   shared_types::{
@@ -362,7 +364,7 @@ impl SessionInstance {
       }
       "PostToolUse" => {
         self.phase = "thinking".into();
-        if self.current_tool.as_ref().and_then(|tool| Some(tool.id.clone())) == event.tool_use_id {
+        if self.current_tool.as_ref().map(|tool| tool.id.clone()) == event.tool_use_id {
           if let Some(current) = self.current_tool.as_mut() {
             current.end_time = Some(now_ms());
             current.duration = current.end_time.map(|end_time| ((end_time - current.start_time) as f64) / 1000.0);
@@ -530,11 +532,15 @@ fn describe_tool_input(tool_name: Option<String>, tool_input: Option<Value>) -> 
 }
 
 fn shorten_path(path: &str) -> String {
+  let path = match std::env::var("HOME") {
+    Ok(home) => path.strip_prefix(&home).map(|rest| format!("~{}", rest)).unwrap_or_else(|| path.to_string()),
+    Err(_) => path.to_string(),
+  };
   let parts: Vec<&str> = path.split('/').collect();
   if parts.len() > 3 {
     format!(".../{}", parts[parts.len()-2..].join("/"))
   } else {
-    path.to_string()
+    path
   }
 }
 
@@ -556,5 +562,5 @@ fn now_ms() -> u64 {
 }
 
 fn unique_id() -> String {
-  format!("id-{}", now_ms())
+  format!("id-{}-{}", now_ms(), ID_COUNTER.fetch_add(1, Ordering::Relaxed))
 }

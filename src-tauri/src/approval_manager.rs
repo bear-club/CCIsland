@@ -53,4 +53,32 @@ impl ApprovalManager {
       .map(|pending| pending.request.clone())
       .collect()
   }
+
+  /// Remove pending approvals older than `max_age_ms`. Returns their IDs for UI cleanup.
+  pub async fn cleanup_stale(&self, max_age_ms: u64) -> Vec<String> {
+    let mut pending = self.pending.lock().await;
+    let now = std::time::SystemTime::now()
+      .duration_since(std::time::UNIX_EPOCH)
+      .map(|d| d.as_millis() as u64)
+      .unwrap_or(0);
+
+    let stale_ids: Vec<String> = pending
+      .iter()
+      .filter(|(_, p)| now.saturating_sub(p.request.timestamp) >= max_age_ms)
+      .map(|(id, _)| id.clone())
+      .collect();
+
+    for id in &stale_ids {
+      if let Some(p) = pending.remove(id) {
+        let _ = p.sender.send(ApprovalDecision {
+          behavior: "allow".into(),
+          reason: Some("Auto-resolved: connection timeout".into()),
+          updated_input: None,
+        });
+        eprintln!("[ApprovalManager] auto-resolved stale approval id={}", id);
+      }
+    }
+
+    stale_ids
+  }
 }

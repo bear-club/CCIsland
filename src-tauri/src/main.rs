@@ -6,14 +6,13 @@ mod shared_types;
 mod tray;
 mod window_state;
 
-use std::{fs, path::PathBuf, process::Command, sync::Arc, time::Duration};
+use std::{fs, process::Command, sync::{atomic::{AtomicU16, Ordering}, Arc}, time::Duration};
 
 use approval_manager::ApprovalManager;
 use hook_router::{extract_questions, HookRouter};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
-use tokio::sync::Mutex;
 use window_state::WindowController;
 
 use crate::shared_types::{ApprovalDecision, PanelState};
@@ -22,7 +21,7 @@ pub struct SharedState {
   pub approval_manager: ApprovalManager,
   pub hook_router: HookRouter,
   pub window_controller: Arc<WindowController>,
-  pub server_port: Mutex<Option<u16>>,
+  pub server_port: AtomicU16,
 }
 
 impl Default for SharedState {
@@ -31,7 +30,7 @@ impl Default for SharedState {
       approval_manager: ApprovalManager::default(),
       hook_router: HookRouter::default(),
       window_controller: Arc::new(WindowController::default()),
-      server_port: Mutex::new(None),
+      server_port: AtomicU16::new(0),
     }
   }
 }
@@ -218,18 +217,13 @@ async fn get_chat_history(
     return Ok(vec![]);
   };
 
-  parse_transcript(&transcript_path, 30)
-}
-
-fn settings_path() -> Result<PathBuf, String> {
-  let home = std::env::var("HOME")
-    .or_else(|_| std::env::var("USERPROFILE"))
-    .map_err(|e| e.to_string())?;
-  Ok(PathBuf::from(home).join(".claude").join("settings.json"))
+  tokio::task::spawn_blocking(move || parse_transcript(&transcript_path, 30))
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn add_allowed_tool(tool_name: &str) -> Result<bool, String> {
-  let path = settings_path()?;
+  let path = hook_installer::settings_path();
   let content = fs::read_to_string(&path).unwrap_or_else(|_| "{}".into());
   let mut settings: Value = serde_json::from_str(&content).unwrap_or_else(|_| json!({}));
 
@@ -443,6 +437,11 @@ fn spawn_background_timers(app: AppHandle, shared: Arc<SharedState>) {
         let _ = app_clone.emit("session-list", shared_clone.hook_router.get_session_list().await);
         tray::update_tray_icon(&app_clone, "done");
       }
+      // Cleanup stale approvals (2 min timeout) — handles disconnected clients
+      let stale_ids = shared_clone.approval_manager.cleanup_stale(120_000).await;
+      for id in stale_ids {
+        let _ = app_clone.emit("approval-dismissed", json!({ "id": id }));
+      }
     }
   });
 
@@ -462,7 +461,8 @@ fn spawn_background_timers(app: AppHandle, shared: Arc<SharedState>) {
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     loop {
       interval.tick().await;
-      let port = shared_clone.server_port.lock().await.unwrap_or(51515);
+      let port = shared_clone.server_port.load(Ordering::Relaxed);
+      if port == 0 { continue; }
       if !hook_installer::is_installed(port) {
         eprintln!("[CCIsland] Hooks missing — re-installing");
         let _ = hook_installer::install_hooks(port);
@@ -494,6 +494,7 @@ fn spawn_background_timers(app: AppHandle, shared: Arc<SharedState>) {
 
 fn main() {
   let shared = Arc::new(SharedState::default());
+  let shared_for_exit = shared.clone();
 
   tauri::Builder::default()
     .manage(shared.clone())
@@ -552,6 +553,15 @@ fn main() {
       jump_to_terminal,
       get_chat_history,
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(move |_app, event| {
+      if let tauri::RunEvent::Exit = event {
+        let port = shared_for_exit.server_port.load(Ordering::Relaxed);
+        if port > 0 {
+          let _ = hook_installer::remove_hooks(port);
+          eprintln!("[CCIsland] Hooks removed on exit");
+        }
+      }
+    });
 }

@@ -16,19 +16,19 @@ if (!window.claude) {
 
 // ── DOM 引用 ──
 
-var compactView = document.getElementById('compact-view')!;
-var expandedView = document.getElementById('expanded-view')!;
-var statusDot = compactView.querySelector('.status-dot')!;
-var statusText = compactView.querySelector('.status-text')!;
-var closeBtn = compactView.querySelector('.close-btn')!;
-var approvalsContainer = document.getElementById('approvals')!;
-var sessionListContainer = document.getElementById('session-list')!;
-var logList = document.getElementById('log-list')!;
-var chatHistory = document.getElementById('chat-history')!;
-var terminalBtn = document.getElementById('terminal-btn');
-var latestState: any = null; // 缓存最新状态用于渲染日志
-var latestChatSessionId: string | null = null;
-var chatHistoryRequestToken = 0;
+let compactView = document.getElementById('compact-view')!;
+let expandedView = document.getElementById('expanded-view')!;
+let statusDot = compactView.querySelector('.status-dot')!;
+let statusText = compactView.querySelector('.status-text')!;
+let closeBtn = compactView.querySelector('.close-btn')!;
+let approvalsContainer = document.getElementById('approvals')!;
+let sessionListContainer = document.getElementById('session-list')!;
+let logList = document.getElementById('log-list')!;
+let chatHistory = document.getElementById('chat-history')!;
+let terminalBtn = document.getElementById('terminal-btn');
+let latestState: any = null; // 缓存最新状态用于渲染日志
+let latestChatSessionId: string | null = null;
+let chatHistoryRequestToken = 0;
 
 // ── 点击事件: 展开/收回/关闭 ──
 
@@ -52,7 +52,7 @@ compactView.addEventListener('click', function(e: MouseEvent) {
 
 expandedView.addEventListener('click', function(e: MouseEvent) {
   // 点击按钮、输入框、选项时不收回
-  var target = e.target as HTMLElement;
+  let target = e.target as HTMLElement;
   if (target.closest('.btn') || target.closest('.option-chip') ||
       target.closest('.other-input') || target.closest('.question-card') ||
       target.closest('.session-row') || target.closest('.terminal-btn')) return;
@@ -127,8 +127,8 @@ window.claude.onStateUpdate((state: any) => {
     case 'thinking': {
       // 胶囊不单独显示 thinking, 保持最后一个工具的信息
       statusText.className = 'status-text';
-      var lastTools = state.recentTools || [];
-      var last = lastTools[lastTools.length - 1];
+      let lastTools = state.recentTools || [];
+      let last = lastTools[lastTools.length - 1];
       if (last) {
         statusDot.className = 'status-dot active';
         statusText.textContent = last.toolName + ': ' + last.description;
@@ -175,14 +175,14 @@ window.claude.onSessionList((sessions: any[]) => {
   sessionListContainer.className = 'session-list has-sessions';
   sessionListContainer.innerHTML = '';
 
-  for (var i = 0; i < sessions.length; i++) {
-    var s = sessions[i];
-    var row = document.createElement('div');
-    var activeClass = (latestState && s.sessionId === latestState.sessionId) ? ' active' : '';
+  for (let i = 0; i < sessions.length; i++) {
+    let s = sessions[i];
+    let row = document.createElement('div');
+    let activeClass = (latestState && s.sessionId === latestState.sessionId) ? ' active' : '';
     row.className = 'session-row' + activeClass;
 
-    var dot = document.createElement('span');
-    var dotClass = 'dot ';
+    let dot = document.createElement('span');
+    let dotClass = 'dot ';
     switch (s.phase) {
       case 'tool': dotClass += 'dot-running'; break;
       case 'thinking': dotClass += 'dot-thinking'; break;
@@ -192,15 +192,15 @@ window.claude.onSessionList((sessions: any[]) => {
     dot.className = dotClass;
     row.appendChild(dot);
 
-    var cwdSpan = document.createElement('span');
+    let cwdSpan = document.createElement('span');
     cwdSpan.className = 'session-cwd';
-    var cwd = s.cwd || 'unknown';
-    var parts = cwd.split('/');
+    let cwd = s.cwd || 'unknown';
+    let parts = cwd.split('/');
     if (parts.length > 3) cwd = '.../' + parts.slice(-2).join('/');
     cwdSpan.textContent = cwd;
     row.appendChild(cwdSpan);
 
-    var toolsSpan = document.createElement('span');
+    let toolsSpan = document.createElement('span');
     toolsSpan.className = 'session-tools';
     toolsSpan.textContent = String(s.toolCount);
     row.appendChild(toolsSpan);
@@ -226,24 +226,24 @@ window.claude.onApprovalRequest((data: any) => {
   expandedView.classList.remove('hidden');
   statusDot.className = 'status-dot pending';
 
-  var card = document.createElement('div');
+  let card = document.createElement('div');
   card.className = 'approval-card';
   card.id = 'approval-' + data.id;
 
-  var label = document.createElement('div');
+  let label = document.createElement('div');
   label.className = 'label';
   label.textContent = '\u26A0 ' + data.toolName;
   card.appendChild(label);
 
-  var toolDesc = document.createElement('div');
+  let toolDesc = document.createElement('div');
   toolDesc.className = 'tool-desc';
   toolDesc.textContent = data.description;
   card.appendChild(toolDesc);
 
-  var actions = document.createElement('div');
+  let actions = document.createElement('div');
   actions.className = 'actions';
 
-  var denyBtn = document.createElement('button');
+  let denyBtn = document.createElement('button');
   denyBtn.className = 'btn btn-deny';
   denyBtn.textContent = 'Deny';
   denyBtn.addEventListener('click', function() {
@@ -251,7 +251,7 @@ window.claude.onApprovalRequest((data: any) => {
     card.remove();
   }, { once: true });
 
-  var allowBtn = document.createElement('button');
+  let allowBtn = document.createElement('button');
   allowBtn.className = 'btn btn-allow';
   allowBtn.textContent = 'Allow';
   allowBtn.addEventListener('click', function() {
@@ -259,7 +259,7 @@ window.claude.onApprovalRequest((data: any) => {
     card.remove();
   }, { once: true });
 
-  var allowAlwaysBtn = document.createElement('button');
+  let allowAlwaysBtn = document.createElement('button');
   allowAlwaysBtn.className = 'btn btn-allow-always';
   allowAlwaysBtn.textContent = 'Always';
   allowAlwaysBtn.addEventListener('click', function() {
@@ -284,42 +284,42 @@ window.claude.onQuestionRequest((data: any) => {
   expandedView.classList.remove('hidden');
   statusDot.className = 'status-dot pending';
 
-  var card = document.createElement('div');
+  let card = document.createElement('div');
   card.className = 'question-card';
   card.id = 'question-' + data.id;
 
   // 跟踪每个问题的选择
-  var selections: Record<string, string | string[]> = {};
+  let selections: Record<string, string | string[]> = {};
 
-  for (var qi = 0; qi < data.questions.length; qi++) {
-    var q = data.questions[qi];
-    var questionKey = q.question;
+  for (let qi = 0; qi < data.questions.length; qi++) {
+    let q = data.questions[qi];
+    let questionKey = q.question;
 
     // Header
     if (q.header) {
-      var header = document.createElement('div');
+      let header = document.createElement('div');
       header.className = 'question-header';
       header.textContent = q.header;
       card.appendChild(header);
     }
 
     // 问题文本
-    var questionText = document.createElement('div');
+    let questionText = document.createElement('div');
     questionText.className = 'question-text';
     questionText.textContent = q.question;
     card.appendChild(questionText);
 
     // 选项 chips
-    var optionsContainer = document.createElement('div');
+    let optionsContainer = document.createElement('div');
     optionsContainer.className = 'options-container';
 
     if (q.multiSelect) {
       selections[questionKey] = [];
     }
 
-    for (var oi = 0; oi < q.options.length; oi++) {
-      var opt = q.options[oi];
-      var chip = document.createElement('button');
+    for (let oi = 0; oi < q.options.length; oi++) {
+      let opt = q.options[oi];
+      let chip = document.createElement('button');
       chip.className = 'option-chip';
       chip.textContent = opt.label;
       if (opt.description) {
@@ -332,18 +332,18 @@ window.claude.onQuestionRequest((data: any) => {
           e.stopPropagation();
           if (isMulti) {
             chipEl.classList.toggle('selected');
-            var arr = selections[qKey] as string[];
-            var idx = arr.indexOf(label);
+            let arr = selections[qKey] as string[];
+            let idx = arr.indexOf(label);
             if (idx >= 0) { arr.splice(idx, 1); } else { arr.push(label); }
           } else {
-            var siblings = container.querySelectorAll('.option-chip');
-            for (var s = 0; s < siblings.length; s++) {
+            let siblings = container.querySelectorAll('.option-chip');
+            for (let s = 0; s < siblings.length; s++) {
               siblings[s].classList.remove('selected');
             }
             chipEl.classList.add('selected');
             selections[qKey] = label;
             // 清空 Other 输入
-            var otherInput = card.querySelectorAll('.other-input')[qIdx] as HTMLInputElement;
+            let otherInput = card.querySelectorAll('.other-input')[qIdx] as HTMLInputElement;
             if (otherInput) otherInput.value = '';
             // 所有单选问题都选好后自动提交
             tryAutoSubmit();
@@ -357,9 +357,9 @@ window.claude.onQuestionRequest((data: any) => {
     card.appendChild(optionsContainer);
 
     // "Other" 自由输入
-    var otherRow = document.createElement('div');
+    let otherRow = document.createElement('div');
     otherRow.className = 'other-row';
-    var otherInput = document.createElement('input');
+    let otherInput = document.createElement('input');
     otherInput.type = 'text';
     otherInput.className = 'other-input';
     otherInput.placeholder = 'Or type your answer...';
@@ -367,8 +367,8 @@ window.claude.onQuestionRequest((data: any) => {
     (function(inputEl: HTMLInputElement, qKey: string, isMulti: boolean, container: HTMLElement) {
       inputEl.addEventListener('input', function() {
         if (inputEl.value.trim() && !isMulti) {
-          var siblings = container.querySelectorAll('.option-chip');
-          for (var s = 0; s < siblings.length; s++) {
+          let siblings = container.querySelectorAll('.option-chip');
+          for (let s = 0; s < siblings.length; s++) {
             siblings[s].classList.remove('selected');
           }
           selections[qKey] = inputEl.value.trim();
@@ -382,15 +382,15 @@ window.claude.onQuestionRequest((data: any) => {
   }
 
   // ── 提交逻辑 ──
-  var submitted = false;
+  let submitted = false;
   function submitAnswers() {
     if (submitted) return;
     submitted = true;
-    var finalAnswers: Record<string, string | string[]> = {};
-    var otherInputs = card.querySelectorAll('.other-input') as NodeListOf<HTMLInputElement>;
-    for (var i = 0; i < data.questions.length; i++) {
-      var qKey = data.questions[i].question;
-      var otherVal = otherInputs[i] ? otherInputs[i].value.trim() : '';
+    let finalAnswers: Record<string, string | string[]> = {};
+    let otherInputs = card.querySelectorAll('.other-input') as NodeListOf<HTMLInputElement>;
+    for (let i = 0; i < data.questions.length; i++) {
+      let qKey = data.questions[i].question;
+      let otherVal = otherInputs[i] ? otherInputs[i].value.trim() : '';
       if (otherVal && !data.questions[i].multiSelect) {
         finalAnswers[qKey] = otherVal;
       } else {
@@ -403,9 +403,9 @@ window.claude.onQuestionRequest((data: any) => {
 
   // 检查所有单选问题是否已有选择，若是则自动提交
   function tryAutoSubmit() {
-    for (var i = 0; i < data.questions.length; i++) {
-      var qKey = data.questions[i].question;
-      var val = selections[qKey];
+    for (let i = 0; i < data.questions.length; i++) {
+      let qKey = data.questions[i].question;
+      let val = selections[qKey];
       if (data.questions[i].multiSelect) return; // multiSelect 需要手动提交
       if (!val || val === '') return;
     }
@@ -414,7 +414,7 @@ window.claude.onQuestionRequest((data: any) => {
   }
 
   // Submit 按钮（兜底，multiSelect 或用户手动提交）
-  var submitBtn = document.createElement('button');
+  let submitBtn = document.createElement('button');
   submitBtn.className = 'btn btn-submit';
   submitBtn.textContent = 'Submit';
   submitBtn.addEventListener('click', function(e) {
@@ -430,7 +430,7 @@ window.claude.onQuestionRequest((data: any) => {
 
 window.claude.onApprovalDismissed((data: any) => {
   console.log('[app] approvalDismissed:', data);
-  var card = document.getElementById('approval-' + data.id) ||
+  let card = document.getElementById('approval-' + data.id) ||
              document.getElementById('question-' + data.id);
   if (card) card.remove();
   if (!approvalsContainer.children.length && !expandedView.classList.contains('hidden') && latestState) {
@@ -448,12 +448,12 @@ window.claude.onNotification((data: any) => {
 // ── 日志渲染 ──
 
 function renderLog(state: any) {
-  var html = '';
-  var log = state.activityLog || [];
+  let html = '';
+  let log = state.activityLog || [];
 
   // 全部日志条目 (Pre: 只有工具名, Post: 工具名+描述)
-  for (var i = 0; i < log.length; i++) {
-    var entry = log[i];
+  for (let i = 0; i < log.length; i++) {
+    let entry = log[i];
     if (entry.description) {
       // PostToolUse: 绿色圆点 + 工具名 + 描述
       html += '<div class="log-line done">' +
@@ -490,7 +490,7 @@ function renderLog(state: any) {
 }
 
 function refreshChatHistory(sessionId?: string | null) {
-  var requestToken = ++chatHistoryRequestToken;
+  let requestToken = ++chatHistoryRequestToken;
   latestChatSessionId = sessionId || null;
 
   window.claude.getChatHistory(sessionId || undefined).then(function(messages: any[]) {
@@ -510,11 +510,11 @@ function renderChatHistory(messages: any[]) {
     return;
   }
 
-  var html = '';
-  for (var i = 0; i < messages.length; i++) {
-    var message = messages[i] || {};
-    var role = message.role === 'assistant' ? 'AI' : 'You';
-    var roleClass = message.role === 'assistant' ? 'chat-assistant' : 'chat-user';
+  let html = '';
+  for (let i = 0; i < messages.length; i++) {
+    let message = messages[i] || {};
+    let role = message.role === 'assistant' ? 'AI' : 'You';
+    let roleClass = message.role === 'assistant' ? 'chat-assistant' : 'chat-user';
     html += '<div class="chat-line ' + roleClass + '">' +
       '<span class="chat-role">' + role + '</span>' +
       '<div class="chat-content">' + escapeHtml(String(message.content || '')) + '</div>' +

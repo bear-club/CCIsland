@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{atomic::Ordering, Arc};
 
 use tauri::{
     image::Image,
@@ -59,9 +59,10 @@ pub fn setup_tray(app: &AppHandle, shared: Arc<SharedState>) -> Result<(), Strin
     let icon = Image::new_owned(icon_rgba, ICON_SIZE, ICON_SIZE);
 
     // Check initial hook status
-    let port = tauri::async_runtime::block_on(async {
-        shared.server_port.lock().await.unwrap_or(51515)
-    });
+    let port = {
+        let p = shared.server_port.load(Ordering::Relaxed);
+        if p == 0 { 51515 } else { p }
+    };
     let hooks_installed = crate::hook_installer::is_installed(port);
     let setup_label = if hooks_installed { "Hooks Installed \u{2713}" } else { "Setup Hooks" };
 
@@ -105,30 +106,24 @@ pub fn setup_tray(app: &AppHandle, shared: Arc<SharedState>) -> Result<(), Strin
                 }
                 "setup_hooks" => {
                     let port = {
-                        let shared = shared.clone();
-                        tauri::async_runtime::block_on(async {
-                            shared.server_port.lock().await.unwrap_or(51515)
-                        })
+                        let p = shared.server_port.load(Ordering::Relaxed);
+                        if p == 0 { 51515 } else { p }
                     };
                     let _ = crate::hook_installer::install_hooks(port);
                     let _ = setup_hooks.set_text("Hooks Installed \u{2713}");
                 }
                 "remove_hooks" => {
                     let port = {
-                        let shared = shared.clone();
-                        tauri::async_runtime::block_on(async {
-                            shared.server_port.lock().await.unwrap_or(51515)
-                        })
+                        let p = shared.server_port.load(Ordering::Relaxed);
+                        if p == 0 { 51515 } else { p }
                     };
                     let _ = crate::hook_installer::remove_hooks(port);
                     let _ = setup_hooks.set_text("Setup Hooks");
                 }
                 "quit" => {
                     let port = {
-                        let shared = shared.clone();
-                        tauri::async_runtime::block_on(async {
-                            shared.server_port.lock().await.unwrap_or(51515)
-                        })
+                        let p = shared.server_port.load(Ordering::Relaxed);
+                        if p == 0 { 51515 } else { p }
                     };
                     let _ = crate::hook_installer::remove_hooks(port);
                     app.exit(0);

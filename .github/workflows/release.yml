@@ -22,7 +22,7 @@ jobs:
             rust_target: x86_64-apple-darwin
           - platform: windows-latest
             args: ''
-            rust_target: ''
+            rust_target: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.platform }}
 
