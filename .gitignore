@@ -4,3 +4,4 @@ dist/
 *.dmg
 *.app
 out/
+src-tauri/target/
