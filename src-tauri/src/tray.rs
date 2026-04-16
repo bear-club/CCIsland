@@ -1,0 +1,150 @@
+use std::sync::Arc;
+
+use tauri::{
+    image::Image,
+    menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
+    tray::TrayIconBuilder,
+    AppHandle,
+};
+
+use crate::{shared_types::PanelState, SharedState};
+
+const ICON_SIZE: u32 = 32;
+const CIRCLE_RADIUS: f64 = 12.0;
+const AA_BAND: f64 = 1.5;
+
+struct PhaseColor(u8, u8, u8);
+
+fn phase_color(phase: &str) -> PhaseColor {
+    match phase {
+        "thinking" => PhaseColor(110, 92, 230),
+        "tool" | "responding" | "done" => PhaseColor(52, 199, 89),
+        _ => PhaseColor(150, 150, 150),
+    }
+}
+
+fn create_circle_icon(r: u8, g: u8, b: u8) -> Vec<u8> {
+    let center = ICON_SIZE as f64 / 2.0;
+    let mut rgba = vec![0u8; (ICON_SIZE * ICON_SIZE * 4) as usize];
+
+    for y in 0..ICON_SIZE {
+        for x in 0..ICON_SIZE {
+            let dx = x as f64 - center;
+            let dy = y as f64 - center;
+            let dist = (dx * dx + dy * dy).sqrt();
+            let idx = ((y * ICON_SIZE + x) * 4) as usize;
+
+            if dist <= CIRCLE_RADIUS - AA_BAND {
+                rgba[idx] = r;
+                rgba[idx + 1] = g;
+                rgba[idx + 2] = b;
+                rgba[idx + 3] = 255;
+            } else if dist <= CIRCLE_RADIUS {
+                let alpha = ((CIRCLE_RADIUS - dist) / AA_BAND * 255.0) as u8;
+                rgba[idx] = r;
+                rgba[idx + 1] = g;
+                rgba[idx + 2] = b;
+                rgba[idx + 3] = alpha;
+            }
+        }
+    }
+
+    rgba
+}
+
+pub fn setup_tray(app: &AppHandle, shared: Arc<SharedState>) -> Result<(), String> {
+    let PhaseColor(r, g, b) = phase_color("idle");
+    let icon_rgba = create_circle_icon(r, g, b);
+    let icon = Image::new_owned(icon_rgba, ICON_SIZE, ICON_SIZE);
+
+    let show_island = MenuItemBuilder::with_id("show_island", "Show Island")
+        .build(app)
+        .map_err(|e| e.to_string())?;
+    let setup_hooks = MenuItemBuilder::with_id("setup_hooks", "Setup Hooks")
+        .build(app)
+        .map_err(|e| e.to_string())?;
+    let remove_hooks = MenuItemBuilder::with_id("remove_hooks", "Remove Hooks")
+        .build(app)
+        .map_err(|e| e.to_string())?;
+    let quit = MenuItemBuilder::with_id("quit", "Quit")
+        .build(app)
+        .map_err(|e| e.to_string())?;
+
+    let menu = MenuBuilder::new(app)
+        .item(&show_island)
+        .item(&PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?)
+        .item(&setup_hooks)
+        .item(&remove_hooks)
+        .item(&PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?)
+        .item(&quit)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let _tray = TrayIconBuilder::with_id("main")
+        .icon(icon)
+        .tooltip("Claude Island — Idle")
+        .menu(&menu)
+        .on_menu_event(move |app, event| {
+            let shared = shared.clone();
+            let app = app.clone();
+            match event.id().as_ref() {
+                "show_island" => {
+                    let app = app.clone();
+                    let shared = shared.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = shared.window_controller.show(&app, PanelState::Compact).await;
+                    });
+                }
+                "setup_hooks" => {
+                    let port = {
+                        let shared = shared.clone();
+                        tauri::async_runtime::block_on(async {
+                            shared.server_port.lock().await.unwrap_or(51515)
+                        })
+                    };
+                    let _ = crate::hook_installer::install_hooks(port);
+                }
+                "remove_hooks" => {
+                    let port = {
+                        let shared = shared.clone();
+                        tauri::async_runtime::block_on(async {
+                            shared.server_port.lock().await.unwrap_or(51515)
+                        })
+                    };
+                    let _ = crate::hook_installer::remove_hooks(port);
+                }
+                "quit" => {
+                    let port = {
+                        let shared = shared.clone();
+                        tauri::async_runtime::block_on(async {
+                            shared.server_port.lock().await.unwrap_or(51515)
+                        })
+                    };
+                    let _ = crate::hook_installer::remove_hooks(port);
+                    app.exit(0);
+                }
+                _ => {}
+            }
+        })
+        .build(app)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+pub fn update_tray_icon(app: &AppHandle, phase: &str) {
+    let PhaseColor(r, g, b) = phase_color(phase);
+    let icon_rgba = create_circle_icon(r, g, b);
+    let icon = Image::new_owned(icon_rgba, ICON_SIZE, ICON_SIZE);
+
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_icon(Some(icon));
+        let tooltip = match phase {
+            "thinking" => "Claude Island — Thinking...",
+            "tool" => "Claude Island — Executing...",
+            "done" => "Claude Island — Done",
+            _ => "Claude Island — Idle",
+        };
+        let _ = tray.set_tooltip(Some(tooltip));
+    }
+}

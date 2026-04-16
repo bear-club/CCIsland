@@ -120,6 +120,45 @@ impl HookRouter {
     sessions.get(session_id).and_then(|session| session.transcript_path.clone())
   }
 
+  /// Check all active sessions for staleness (no events within timeout_ms). Returns true if any changed.
+  pub async fn check_stale(&self, timeout_ms: u64) -> bool {
+    let mut sessions = self.sessions.lock().await;
+    let now = now_ms();
+    let mut changed = false;
+
+    for session in sessions.values_mut() {
+      if !session.is_active {
+        continue;
+      }
+      if session.phase != "thinking" && session.phase != "tool" {
+        continue;
+      }
+      if let Some(last) = session.last_event_time {
+        if now.saturating_sub(last) >= timeout_ms {
+          session.phase = "done".into();
+          session.last_message = Some("Session timed out".into());
+          changed = true;
+        }
+      }
+    }
+
+    changed
+  }
+
+  /// Remove inactive+done sessions older than 5 minutes.
+  pub async fn cleanup(&self) {
+    let mut sessions = self.sessions.lock().await;
+    let cutoff = now_ms().saturating_sub(5 * 60 * 1000);
+
+    sessions.retain(|_id, session| {
+      if !session.is_active && session.phase == "done" {
+        session.last_event_time.unwrap_or(0) >= cutoff
+      } else {
+        true
+      }
+    });
+  }
+
   async fn emit_state(&self, app: &AppHandle) -> Result<(), String> {
     app.emit("state-update", self.get_state().await)
       .map_err(|e| e.to_string())?;

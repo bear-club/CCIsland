@@ -1,10 +1,12 @@
 mod approval_manager;
+mod hook_installer;
 mod hook_router;
 mod hook_server;
 mod shared_types;
+mod tray;
 mod window_state;
 
-use std::{fs, path::PathBuf, process::Command, sync::Arc};
+use std::{fs, path::PathBuf, process::Command, sync::Arc, time::Duration};
 
 use approval_manager::ApprovalManager;
 use hook_router::{extract_questions, HookRouter};
@@ -17,10 +19,10 @@ use window_state::WindowController;
 use crate::shared_types::{ApprovalDecision, PanelState};
 
 pub struct SharedState {
-  approval_manager: ApprovalManager,
-  hook_router: HookRouter,
-  window_controller: Arc<WindowController>,
-  server_port: Mutex<Option<u16>>,
+  pub approval_manager: ApprovalManager,
+  pub hook_router: HookRouter,
+  pub window_controller: Arc<WindowController>,
+  pub server_port: Mutex<Option<u16>>,
 }
 
 impl Default for SharedState {
@@ -360,20 +362,109 @@ fn extract_text_content(message: &Value) -> String {
     .unwrap_or_default()
 }
 
+/// Spawn background timers for stale session detection, session cleanup, and hook re-installation.
+fn spawn_background_timers(app: AppHandle, shared: Arc<SharedState>) {
+  // Stale session detection: every 15s, mark sessions with >90s no events as done
+  let app_clone = app.clone();
+  let shared_clone = shared.clone();
+  tauri::async_runtime::spawn(async move {
+    let mut interval = tokio::time::interval(Duration::from_secs(15));
+    loop {
+      interval.tick().await;
+      if shared_clone.hook_router.check_stale(90_000).await {
+        eprintln!("[Claude Island] Stale session detected — marking done");
+        let snapshot = shared_clone.hook_router.get_state().await;
+        let _ = app_clone.emit("state-update", &snapshot);
+        let _ = app_clone.emit("session-list", shared_clone.hook_router.get_session_list().await);
+        tray::update_tray_icon(&app_clone, "done");
+      }
+    }
+  });
+
+  // Session cleanup: every 60s, remove inactive+done sessions
+  let shared_clone = shared.clone();
+  tauri::async_runtime::spawn(async move {
+    let mut interval = tokio::time::interval(Duration::from_secs(60));
+    loop {
+      interval.tick().await;
+      shared_clone.hook_router.cleanup().await;
+    }
+  });
+
+  // Hook re-installation: every 30s, check if hooks are still installed
+  let shared_clone = shared.clone();
+  tauri::async_runtime::spawn(async move {
+    let mut interval = tokio::time::interval(Duration::from_secs(30));
+    loop {
+      interval.tick().await;
+      let port = shared_clone.server_port.lock().await.unwrap_or(51515);
+      if !hook_installer::is_installed(port) {
+        eprintln!("[Claude Island] Hooks missing — re-installing");
+        let _ = hook_installer::install_hooks(port);
+      }
+    }
+  });
+
+  // Tray icon phase sync: every 5s, update tray icon to match current session phase
+  let app_clone = app.clone();
+  let shared_clone = shared.clone();
+  tauri::async_runtime::spawn(async move {
+    let mut interval = tokio::time::interval(Duration::from_secs(5));
+    loop {
+      interval.tick().await;
+      let snapshot = shared_clone.hook_router.get_state().await;
+      tray::update_tray_icon(&app_clone, &snapshot.phase);
+    }
+  });
+}
+
 fn main() {
   let shared = Arc::new(SharedState::default());
 
   tauri::Builder::default()
     .manage(shared.clone())
     .setup(move |app| {
+      // Hide main window initially
       if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
       }
 
+      // Hide dock icon on macOS (LSUIElement in bundle config handles this for release builds)
+      #[cfg(target_os = "macos")]
+      {
+        app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+      }
+
+      // Setup system tray
       let app_handle = app.handle().clone();
-      let shared = shared.clone();
+      if let Err(e) = tray::setup_tray(&app_handle, shared.clone()) {
+        eprintln!("[Claude Island] Failed to setup tray: {}", e);
+      }
+
+      // Spawn hook server
+      let app_handle = app.handle().clone();
+      let shared_for_server = shared.clone();
+      let shared_for_timers = shared.clone();
       tauri::async_runtime::spawn(async move {
-        let _ = hook_server::spawn_hook_server(app_handle.clone(), shared.clone()).await;
+        match hook_server::spawn_hook_server(app_handle.clone(), shared_for_server.clone()).await {
+          Ok(port) => {
+            eprintln!("[Claude Island] Hook server on port {}", port);
+            // Auto-install hooks
+            if !hook_installer::is_installed(port) {
+              if let Err(e) = hook_installer::install_hooks(port) {
+                eprintln!("[Claude Island] Failed to install hooks: {}", e);
+              } else {
+                eprintln!("[Claude Island] Hooks auto-installed");
+              }
+            }
+          }
+          Err(e) => {
+            eprintln!("[Claude Island] Failed to start hook server: {}", e);
+          }
+        }
+
+        // Start background timers after server is ready
+        spawn_background_timers(app_handle, shared_for_timers);
       });
 
       Ok(())

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Claude Island Tauri PoC",
-  "version": "0.1.0",
-  "identifier": "com.cc-island.tauri-poc",
+  "productName": "Claude Island",
+  "version": "0.3.0",
+  "identifier": "com.cc-island.app",
   "build": {
     "frontendDist": "../dist/renderer"
   },
@@ -33,10 +33,23 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "category": "DeveloperTool",
     "macOS": {
-      "minimumSystemVersion": "14.0"
+      "minimumSystemVersion": "14.0",
+      "frameworks": [],
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "entitlements": null
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "skip"
+      }
     }
   }
 }

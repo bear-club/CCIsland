@@ -124,15 +124,6 @@ pub struct LogEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ChatMessage {
-  pub role: String,
-  pub content: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub timestamp: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SessionSnapshot {
   pub is_active: bool,
   pub phase: String,
