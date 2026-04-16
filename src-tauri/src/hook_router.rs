@@ -452,22 +452,75 @@ pub(crate) fn extract_questions(input: Value) -> Vec<QuestionItem> {
 }
 
 fn describe_tool_input(tool_name: Option<String>, tool_input: Option<Value>) -> String {
+  let payload = tool_input.unwrap_or(Value::Null);
   match tool_name.as_deref() {
     Some("AskUserQuestion") => "Claude needs your input".into(),
+    Some("Bash") => {
+      let cmd = payload.get("command").and_then(|v| v.as_str()).unwrap_or("");
+      let truncated: String = cmd.chars().take(100).collect();
+      if cmd.len() > 100 { format!("$ {}...", truncated) } else { format!("$ {}", truncated) }
+    }
+    Some("Read") => {
+      let path = payload.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+      shorten_path(path)
+    }
+    Some("Write") => {
+      let path = payload.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+      format!("write {}", shorten_path(path))
+    }
+    Some("Edit") => {
+      let path = payload.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+      format!("edit {}", shorten_path(path))
+    }
+    Some("Glob") => {
+      let pattern = payload.get("pattern").and_then(|v| v.as_str()).unwrap_or("");
+      format!("glob {}", pattern)
+    }
+    Some("Grep") => {
+      let pattern = payload.get("pattern").and_then(|v| v.as_str()).unwrap_or("");
+      let path = payload.get("path").and_then(|v| v.as_str()).unwrap_or("");
+      if path.is_empty() {
+        format!("grep \"{}\"", pattern)
+      } else {
+        format!("\"{}\" in {}", pattern, shorten_path(path))
+      }
+    }
+    Some("WebFetch") => {
+      let url = payload.get("url").and_then(|v| v.as_str()).unwrap_or("");
+      let truncated: String = url.chars().take(80).collect();
+      if url.len() > 80 { format!("fetch {}...", truncated) } else { format!("fetch {}", truncated) }
+    }
+    Some("WebSearch") => {
+      let query = payload.get("query").and_then(|v| v.as_str()).unwrap_or("");
+      format!("search \"{}\"", query)
+    }
+    Some("TodoWrite") => "update task list".into(),
+    Some("Agent") => {
+      let desc = payload.get("description").and_then(|v| v.as_str()).unwrap_or("subagent");
+      desc.to_string()
+    }
     Some(name) => {
-      let payload = tool_input.unwrap_or(Value::Null);
       if payload.is_null() {
         name.to_string()
       } else {
         let serialized = payload.to_string();
-        if serialized.len() > 120 {
-          format!("{} {}...", name, &serialized[..120])
+        if serialized.len() > 100 {
+          format!("{} {}...", name, &serialized[..100])
         } else {
           format!("{} {}", name, serialized)
         }
       }
     }
     None => "Unknown tool".into(),
+  }
+}
+
+fn shorten_path(path: &str) -> String {
+  let parts: Vec<&str> = path.split('/').collect();
+  if parts.len() > 3 {
+    format!(".../{}", parts[parts.len()-2..].join("/"))
+  } else {
+    path.to_string()
   }
 }
 

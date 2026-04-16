@@ -222,7 +222,9 @@ async fn get_chat_history(
 }
 
 fn settings_path() -> Result<PathBuf, String> {
-  let home = std::env::var("HOME").map_err(|e| e.to_string())?;
+  let home = std::env::var("HOME")
+    .or_else(|_| std::env::var("USERPROFILE"))
+    .map_err(|e| e.to_string())?;
   Ok(PathBuf::from(home).join(".claude").join("settings.json"))
 }
 
@@ -296,7 +298,10 @@ fn parse_transcript(transcript_path: &str, limit: usize) -> Result<Vec<serde_jso
   Ok(messages.into_iter().skip(start).collect())
 }
 
-const TERMINALS: &[(&str, &str, &str)] = &[
+// ── macOS: AppleScript-based terminal activation ──
+
+#[cfg(target_os = "macos")]
+const TERMINALS_MAC: &[(&str, &str, &str)] = &[
   ("iTerm2", "com.googlecode.iterm2", "tell application \"iTerm\" to activate"),
   ("Terminal", "com.apple.Terminal", "tell application \"Terminal\" to activate"),
   ("VS Code", "com.microsoft.VSCode", "tell application \"Visual Studio Code\" to activate"),
@@ -306,6 +311,7 @@ const TERMINALS: &[(&str, &str, &str)] = &[
   ("Warp", "dev.warp.Warp-Stable", "tell application \"Warp\" to activate"),
 ];
 
+#[cfg(target_os = "macos")]
 fn run_osascript(script: &str) -> bool {
   Command::new("osascript")
     .arg("-e")
@@ -315,6 +321,7 @@ fn run_osascript(script: &str) -> bool {
     .unwrap_or(false)
 }
 
+#[cfg(target_os = "macos")]
 fn is_running(bundle_id: &str) -> bool {
   run_osascript(&format!(
     "tell application \"System Events\" to (name of processes whose bundle identifier is \"{}\") as text",
@@ -322,25 +329,78 @@ fn is_running(bundle_id: &str) -> bool {
   ))
 }
 
-fn jump_to_terminal_impl() -> Result<serde_json::Value, String> {
-  #[cfg(not(target_os = "macos"))]
-  {
-    return Ok(json!({ "success": false, "reason": "unsupported-platform" }));
-  }
+// ── Windows: PowerShell-based terminal activation ──
 
+#[cfg(target_os = "windows")]
+const TERMINALS_WIN: &[(&str, &str)] = &[
+  ("Windows Terminal", "WindowsTerminal"),
+  ("VS Code", "Code"),
+  ("Cursor", "Cursor"),
+  ("Windsurf", "Windsurf"),
+  ("PowerShell", "powershell"),
+  ("pwsh", "pwsh"),
+  ("cmd", "cmd"),
+];
+
+#[cfg(target_os = "windows")]
+fn win_process_running(process_name: &str) -> bool {
+  Command::new("powershell")
+    .args(["-NoProfile", "-Command",
+      &format!("Get-Process -Name '{}' -ErrorAction SilentlyContinue | Select-Object -First 1", process_name)])
+    .output()
+    .map(|output| output.status.success() && !output.stdout.is_empty())
+    .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
+fn win_activate(process_name: &str) -> bool {
+  let script = format!(
+    "$p = Get-Process -Name '{}' -ErrorAction SilentlyContinue | Select-Object -First 1; \
+     if ($p) {{ \
+       $sig = '[DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd);'; \
+       Add-Type -MemberDefinition $sig -Name WinAPI -Namespace Temp -ErrorAction SilentlyContinue; \
+       [Temp.WinAPI]::SetForegroundWindow($p.MainWindowHandle) | Out-Null; \
+       $true \
+     }} else {{ $false }}",
+    process_name
+  );
+  Command::new("powershell")
+    .args(["-NoProfile", "-Command", &script])
+    .output()
+    .map(|output| output.status.success())
+    .unwrap_or(false)
+}
+
+// ── Platform dispatch ──
+
+fn jump_to_terminal_impl() -> Result<serde_json::Value, String> {
   #[cfg(target_os = "macos")]
   {
-    for (name, bundle_id, script) in TERMINALS {
+    for (name, bundle_id, script) in TERMINALS_MAC {
       if is_running(bundle_id) && run_osascript(script) {
         return Ok(json!({ "success": true, "app": name }));
       }
     }
-
-    if run_osascript(TERMINALS[1].2) {
+    // Fallback: open Terminal.app
+    if run_osascript(TERMINALS_MAC[1].2) {
       return Ok(json!({ "success": true, "app": "Terminal" }));
     }
-
     Ok(json!({ "success": false, "reason": "not-found" }))
+  }
+
+  #[cfg(target_os = "windows")]
+  {
+    for (name, process_name) in TERMINALS_WIN {
+      if win_process_running(process_name) && win_activate(process_name) {
+        return Ok(json!({ "success": true, "app": name }));
+      }
+    }
+    Ok(json!({ "success": false, "reason": "not-found" }))
+  }
+
+  #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+  {
+    Ok(json!({ "success": false, "reason": "unsupported-platform" }))
   }
 }
 

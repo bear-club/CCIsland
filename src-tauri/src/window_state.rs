@@ -46,15 +46,21 @@ impl WindowController {
       .ok()
       .flatten()
       .map(|monitor| {
+        let scale = monitor.scale_factor();
         let position = monitor.position();
         let work_area = monitor.work_area();
+        // Monitor returns physical pixels; convert to logical for LogicalPosition
+        let wa_x = work_area.position.x as f64 / scale;
+        let wa_y = work_area.position.y as f64 / scale;
+        let wa_w = work_area.size.width as f64 / scale;
+        let mon_y = position.y as f64 / scale;
         let top = if work_area.position.y > position.y {
-          work_area.position.y as f64 + 8.0
+          wa_y + 8.0
         } else {
-          position.y as f64 + 32.0
+          mon_y + 32.0
         };
         (
-          work_area.position.x as f64 + ((work_area.size.width as f64 - width) / 2.0).round(),
+          wa_x + ((wa_w - width) / 2.0).round(),
           top,
         )
       })
@@ -68,7 +74,6 @@ impl WindowController {
       .map_err(|e| e.to_string())?;
     window.set_always_on_top(true).map_err(|e| e.to_string())?;
     let _ = window.set_visible_on_all_workspaces(true);
-    let _ = window.set_focusable(false);
     eprintln!("[WindowController] show state={} x={} y={} width={} height={}", state.as_str(), x, y, width, height);
     window.show().map_err(|e| e.to_string())?;
 

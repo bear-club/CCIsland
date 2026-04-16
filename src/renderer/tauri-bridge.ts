@@ -19,18 +19,13 @@
   window.claude = {
     approveDecision: function(id, behavior, reason, toolName) {
       return invoke('approve_decision', {
-        id: id,
-        behavior: behavior,
-        reason: reason,
-        toolName: toolName,
+        args: { id: id, behavior: behavior, reason: reason, toolName: toolName },
       });
     },
 
     answerQuestion: function(id, answers, originalQuestions) {
       return invoke('answer_question', {
-        id: id,
-        answers: answers,
-        originalQuestions: originalQuestions,
+        args: { id: id, answers: answers, originalQuestions: originalQuestions },
       });
     },
 
@@ -39,11 +34,11 @@
     },
 
     getChatHistory: function(sessionId) {
-      return invoke('get_chat_history', { sessionId: sessionId });
+      return invoke('get_chat_history', { args: { sessionId: sessionId } });
     },
 
     switchSession: function(sessionId) {
-      return invoke('switch_session', { sessionId: sessionId });
+      return invoke('switch_session', { args: { sessionId: sessionId } });
     },
 
     getState: function() {
@@ -51,7 +46,7 @@
     },
 
     togglePanel: function(state) {
-      return invoke('toggle_panel', { state: state });
+      return invoke('toggle_panel', { args: { state: state } });
     },
 
     onStateUpdate: function(cb) { listen('state-update', cb); },

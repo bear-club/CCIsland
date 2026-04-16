@@ -57,10 +57,17 @@ pub fn setup_tray(app: &AppHandle, shared: Arc<SharedState>) -> Result<(), Strin
     let icon_rgba = create_circle_icon(r, g, b);
     let icon = Image::new_owned(icon_rgba, ICON_SIZE, ICON_SIZE);
 
+    // Check initial hook status
+    let port = tauri::async_runtime::block_on(async {
+        shared.server_port.lock().await.unwrap_or(51515)
+    });
+    let hooks_installed = crate::hook_installer::is_installed(port);
+    let setup_label = if hooks_installed { "Hooks Installed \u{2713}" } else { "Setup Hooks" };
+
     let show_island = MenuItemBuilder::with_id("show_island", "Show Island")
         .build(app)
         .map_err(|e| e.to_string())?;
-    let setup_hooks = MenuItemBuilder::with_id("setup_hooks", "Setup Hooks")
+    let setup_hooks = MenuItemBuilder::with_id("setup_hooks", setup_label)
         .build(app)
         .map_err(|e| e.to_string())?;
     let remove_hooks = MenuItemBuilder::with_id("remove_hooks", "Remove Hooks")
@@ -103,6 +110,7 @@ pub fn setup_tray(app: &AppHandle, shared: Arc<SharedState>) -> Result<(), Strin
                         })
                     };
                     let _ = crate::hook_installer::install_hooks(port);
+                    let _ = setup_hooks.set_text("Hooks Installed \u{2713}");
                 }
                 "remove_hooks" => {
                     let port = {
@@ -112,6 +120,7 @@ pub fn setup_tray(app: &AppHandle, shared: Arc<SharedState>) -> Result<(), Strin
                         })
                     };
                     let _ = crate::hook_installer::remove_hooks(port);
+                    let _ = setup_hooks.set_text("Setup Hooks");
                 }
                 "quit" => {
                     let port = {
